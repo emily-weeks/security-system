@@ -1,0 +1,295 @@
+substitutions:
+  inverted: 'false'
+  garage_door: GPIO
+  front_door: GPIO
+  back_door: GPIO
+  kitchen_window: GPIO
+  living_room_window: GPIO
+  bedroom_window: GPIO
+  laundry_window: GPIO
+  buzzer: GPIO
+
+# Buzzer Output
+output:
+  - platform: gpio
+    pin: $buzzer
+    id: buzzer_output
+
+
+# ------------------------------------
+# SCRIPT DEFINITION
+# ------------------------------------
+script:
+  # Script to execute an alarm that will continually loop while master_alarm is active
+  - id: continuous_alarm
+    mode: restart
+    then:
+        - while:
+            condition:
+              and:
+                - switch.is_on: master_alarm_switch
+                - or:
+                    - binary_sensor.is_on: front_door_id
+                    - binary_sensor.is_on: back_door_id
+                    - binary_sensor.is_on: garage_door_id
+            then:
+              - output.turn_on: buzzer_output
+              - delay: 500ms
+              - output.turn_off: buzzer_output
+              - delay: 500ms
+        - output.turn_off: buzzer_output # ensure off when loop breaks
+
+            
+  # Script to execute a "beep beep beep" pattern
+  - id: beep_three_times
+    mode: restart
+    then:
+      - delay: 500ms
+      # --- Beep 1 ---
+      - output.turn_on: buzzer_output
+      - delay: 100ms
+      - output.turn_off: buzzer_output
+      - delay: 125ms
+      # --- Beep 2 ---
+      - output.turn_on: buzzer_output
+      - delay: 100ms
+      - output.turn_off: buzzer_output
+      - delay: 125ms
+      # --- Beep 3 ---
+      - output.turn_on: buzzer_output
+      - delay: 100ms
+      - output.turn_off: buzzer_output
+
+  # Script to execute a continous alarm if any door is open while armed
+  - id: master_alarm
+    mode: restart
+    then:
+      - lambda: 'ESP_LOGI("Alarm Check", "Running master alarm switch check...");'
+      - if:
+          condition:
+            switch.is_on: master_alarm_switch
+          then:
+            - lambda: 'ESP_LOGI("Alarm Check", "Running door check (System is Armed)...");'
+            - if:
+                condition:
+                  or:
+                    - binary_sensor.is_on: front_door_id
+                    - binary_sensor.is_on: back_door_id
+                    - binary_sensor.is_on: garage_door_id
+                then:
+                  - lambda: 'ESP_LOGW("Alarm Check", "One or more doors open. Activating continuous alarm!");'
+                  - script.execute: continuous_alarm
+                else:
+                  - lambda: 'ESP_LOGI("Alarm Check", "All monitored doors are closed. Staying silent.");'
+                  - script.stop: continuous_alarm
+          else:
+            - lambda: 'ESP_LOGI("Alarm Check", "Master Alarm Switch is off. Staying silent.");'
+            - script.stop: continuous_alarm
+            - output.turn_off: buzzer_output
+
+binary_sensor:
+
+# --- Front Door Sensor ---
+  - platform: gpio
+    pin:
+      number: $front_door
+      mode: INPUT_PULLUP
+      inverted: $inverted
+    name: "Front Door"
+    id: front_door_id
+    device_class: door
+    filters:
+      # Debouncing filter to ignore quick, bouncy state changes
+      - delayed_off: 50ms 
+      - delayed_on: 50ms
+    on_state:
+      then:
+        - if:
+            condition:
+              # Check if the new state is ON (x is true = door open)
+              lambda: return x;
+            then:
+              - script.execute: beep_three_times
+              - lambda: 'ESP_LOGI("Front Door", "Door opened. Starting 30 second alarm delay.");'
+              - delay: 30s # Wait 30 seconds
+              - if:
+                  condition:
+                    # Check if the sensor is STILL ON after the delay
+                    binary_sensor.is_on: front_door_id
+                  then:
+                    # If still on, execute the persistent alarm
+                    - script.execute: master_alarm
+            else:
+              # If the new state is OFF (x is false = door closed)
+              - lambda: 'ESP_LOGI("Front Door", "Door closed. Stopping persistent alarm.");'
+
+
+  # --- Garage Door Sensor ---
+  - platform: gpio
+    pin:
+      number: $garage_door
+      mode: INPUT_PULLUP
+      inverted: $inverted
+    name: "Garage Door"
+    id: garage_door_id
+    device_class: door
+    filters:
+      - delayed_off: 50ms 
+      - delayed_on: 50ms
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: return x;
+            then:
+              - script.execute: beep_three_times
+              - lambda: 'ESP_LOGI("Garage Door", "Door opened. Starting 30 second alarm delay.");'
+              - delay: 30s
+              - if:
+                  condition:
+                    binary_sensor.is_on: garage_door_id
+                  then:
+                    - script.execute: master_alarm
+            else:
+              - lambda: 'ESP_LOGI("Garage Door", "Door closed. Stopping persistent alarm.");'
+
+
+
+  # --- Back Door Sensor ---
+  - platform: gpio
+    pin:
+      number: $back_door
+      mode: INPUT_PULLUP
+      inverted: $inverted
+    name: "Back Door"
+    id: back_door_id
+    device_class: door
+    filters:
+      - delayed_off: 50ms 
+      - delayed_on: 50ms
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: return x;
+            then:
+              - script.execute: beep_three_times
+              - lambda: 'ESP_LOGI("Back Door", "Door opened. Starting 30 second alarm delay.");'
+              - delay: 30s
+              - if:
+                  condition:
+                    binary_sensor.is_on: back_door_id
+                  then:
+                    - script.execute: master_alarm
+            else:
+              - lambda: 'ESP_LOGI("Back Door", "Door closed. Stopping persistent alarm.");'
+
+
+
+    # --- Kitchen Window Sensor ---
+  - platform: gpio
+    pin:
+      number: $kitchen_window
+      mode: INPUT_PULLUP
+      inverted: $inverted
+    name: "Kitchen Window"
+    device_class: window
+    filters:
+      - delayed_off: 50ms 
+      - delayed_on: 50ms
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: return x;
+            then:
+              - script.execute: beep_three_times
+              - lambda: 'ESP_LOGI("Kitchen Window", "Kitchen Window is now OPEN");'
+            else:
+              - lambda: 'ESP_LOGI("Kitchen Window", "Kitchen Window is now CLOSED");'
+
+
+
+    # --- Living Room Window Sensor ---
+  - platform: gpio
+    pin:
+      number: $living_room_window
+      mode: INPUT_PULLUP
+      inverted: $inverted
+    name: "Living Room Window"
+    device_class: window
+    filters:
+      - delayed_off: 50ms 
+      - delayed_on: 50ms
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: return x;
+            then:
+              - script.execute: beep_three_times
+              - lambda: 'ESP_LOGI("Living Room Window", "Living Room Window is now OPEN");'
+            else:
+              - lambda: 'ESP_LOGI("Living Room Window", "Living Room Window is now CLOSED");'
+
+
+    # --- Bedroom Window Sensor ---
+  - platform: gpio
+    pin:
+      number: $bedroom_window
+      mode: INPUT_PULLUP
+      inverted: $inverted
+    name: "Bedroom Window"
+    device_class: window
+    filters:
+      - delayed_off: 50ms 
+      - delayed_on: 50ms
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: return x;
+            then:
+              - script.execute: beep_three_times
+              - lambda: 'ESP_LOGI("Bedroom Window", "Bedroom Window is now OPEN");'
+            else:
+              - lambda: 'ESP_LOGI("Bedroom Window", "Bedroom Window is now CLOSED");'
+
+
+    # --- Laundry Window Sensor ---
+  - platform: gpio
+    pin:
+      number: $laundry_window
+      mode: INPUT_PULLUP
+      inverted: $inverted
+    name: "Laundry Window"
+    device_class: window
+    filters:
+      - delayed_off: 50ms 
+      - delayed_on: 50ms
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: return x;
+            then:
+              - script.execute: beep_three_times
+              - lambda: 'ESP_LOGI("Laundry Window", "Laundry Window is now OPEN");'
+            else:
+              - lambda: 'ESP_LOGI("Laundry Window", "Laundry Window is now CLOSED");'
+
+
+
+# ------------------------------------
+# HOME ASSISTANT DISARM BUTTON
+# ------------------------------------
+switch:
+  - platform: template
+    name: "Master Alarm Control"
+    id: master_alarm_switch
+    optimistic: true
+    turn_off_action:
+      - script.stop: continuous_alarm
+      - script.stop: beep_three_times
+      - output.turn_off: buzzer_output
+      - lambda: 'ESP_LOGI("Alarm", "System Disarmed and buzzer silenced");'

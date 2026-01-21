@@ -37,9 +37,9 @@ packages:
 The system provides a veiw of real time changes for every entry point to the house.
 Here is the dashboard view in Home Assistant:
 
-![Home Assistant Entity](https://github.com/emily-weeks/security-system/blob/main/images/home-assistant-entity.jpg?raw=true)
+<img src="https://github.com/emily-weeks/security-system/blob/main/images/home-assistant-entity.jpg" width="400" alt="Home Assistant Security Dashboard">
 
 When a door or window is opened and the magnetic circuit is broken, the ESP32 registers the event and triggers the logic to log, beep, or set off the alarm.
 
-![Entity Changes](https://github.com/emily-weeks/security-system/blob/main/images/entity-activity.jpg?raw=true)
+<img src="https://github.com/emily-weeks/security-system/blob/main/images/entity-activity.jpg" width="400" alt="Security Dashboard Entity Changes">
 

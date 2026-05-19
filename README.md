@@ -43,7 +43,7 @@ When a door or window is opened and the magnetic circuit is broken, the ESP32 re
 
 <img src="https://github.com/emily-weeks/security-system/blob/main/images/entity-activity.jpg" width="400" alt="Security Dashboard Entity Changes">
 
-You can view a sample esp-32 set up in Figma **Figma** [Figma Security System](https://www.figma.com/design/PHvcuJiDcMNww1mL4SXOWe/Security-System?node-id=60-2&t=WxJDDpMbh6aer3UN-1).
+You can view a sample esp-32 set up in  **[Figma Security System](https://www.figma.com/design/PHvcuJiDcMNww1mL4SXOWe/Security-System?node-id=60-2&t=WxJDDpMbh6aer3UN-1)**.
 
 <img src="https://github.com/emily-weeks/security-system/blob/main/images/security-system-diagram.jpg" width="400" alt="Security System Set Up Diagram">
 
